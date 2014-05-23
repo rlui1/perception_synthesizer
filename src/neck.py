@@ -1,10 +1,9 @@
 #!/usr/bin/env python  
-import roslib; roslib.load_manifest('dmitrytracker')
+#import roslib; roslib.load_manifest('dmitry_tracker')
 import rospy
 import bpy
 import math
 import threading
-import tf
 
 from mathutils import Matrix, Vector
 from math import acos, degrees
@@ -13,12 +12,14 @@ from bpy.app.handlers import persistent
 from std_msgs.msg import Float64
 from std_msgs.msg import UInt16MultiArray
 
+neck0 = 0
 neck1 = 0
 neck2 = 0
 neck3 = 0
 
 dynamixel_namespace = rospy.get_namespace()
 rospy.init_node('blender_arm', anonymous=True)
+neck0dm = rospy.Publisher(dynamixel_namespace + 'neck0/command', Float64)
 neck1dm = rospy.Publisher(dynamixel_namespace + 'neck1/command', Float64)
 neck2dm = rospy.Publisher(dynamixel_namespace + 'neck2/command', Float64)
 neck3dm = rospy.Publisher(dynamixel_namespace + 'neck3/command', Float64)
@@ -26,13 +27,10 @@ neck3dm = rospy.Publisher(dynamixel_namespace + 'neck3/command', Float64)
 openni = []
 opennilock = threading.Lock()
 
-tf2listener = tf.TransformListener()
-
 def openniCallback(thearray):
     global openni, opennilock
     opennilock.acquire()
-    openni = thearray
-    print("OPENNI %s" % thearray)
+    openni = thearray.data
     opennilock.release()
 
 openni = rospy.Subscriber('openni_tracker/users', UInt16MultiArray, openniCallback)
@@ -90,9 +88,15 @@ def get_bones_rotation_rad(armature,bone,axis):
 
 @persistent
 def load_handler(dummy):
-    global openni, opennilock, neck1, neck2, neck3, neck1dm, neck2dm, neck3dm
+    global openni, opennilock, neck0, neck1, neck2, neck3, neck0dm, neck1dm, neck2dm, neck3dm
 
     newstuff = False
+
+    newneck0 = (get_bones_rotation_rad('Armature','base','y') * -2) 
+    if neck0 != newneck0:
+        neck0 = newneck0
+        neck0dm.publish(float(newneck0))
+        print("BASE: %s" % neck0)
 
     newneck1 = (get_bones_rotation_rad('Armature','bracket1','x') * -2) + 2.5
     if neck1 != newneck1:
@@ -112,16 +116,12 @@ def load_handler(dummy):
         neck3dm.publish(float(newneck3))
         print("NECK3: %s" % neck3)
 
-    opennilock.acquire()
-    print("OPENNI: %s" % openni)
-    opennilock.release()
+#    opennilock.acquire()
+#    print("OPENNI: %s" % openni)
+#    opennilock.release()
 
-    for user in openni.users:
-        try:
-            print("USER %s" % user)
-            (trans,rot) = listener.lookupTransform('/camera_depth_frame', '/head_' + str(user), rospy.Time(0))
-        except (tf2.LookupException, tf2.ConnectivityException):
-            continue
+#    for user in openni:
+#        print("USER %s" % user)
 
 bpy.app.handlers.scene_update_post.append(load_handler)
 
