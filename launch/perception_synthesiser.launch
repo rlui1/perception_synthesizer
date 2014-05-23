@@ -1,0 +1,11 @@
+<launch>
+	<!--node pkg="tf" type="static_transform_publisher" name="dmitriy_base_link_to_dmitriy_marker_transform" args="-0.045 -0.00 -0.04 0.03 1.1 0.0 1.0 dmitriy_marker base_link 10" /-->
+
+	<!--node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" >
+		<param name="camera_frame_id" value="camera_depth_frame"/>
+		<param name="smoothing" value="0.7"/>
+		<param name="num_users" value="2"/>
+	</node-->
+
+	<node name="perception_synthesiser" pkg="dmitry_tracker" type="perception_synthesiser.py" output="screen" />
+</launch>
