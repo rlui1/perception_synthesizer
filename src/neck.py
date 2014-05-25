@@ -12,6 +12,8 @@ from bpy.app.handlers import persistent
 from std_msgs.msg import Float64
 from std_msgs.msg import UInt16MultiArray
 
+domotors = False
+jaw = 0
 neck0 = 0
 neck1 = 0
 neck2 = 0
@@ -19,21 +21,21 @@ neck3 = 0
 
 dynamixel_namespace = rospy.get_namespace()
 rospy.init_node('blender_arm', anonymous=True)
-neck0dm = rospy.Publisher(dynamixel_namespace + 'neck0/command', Float64)
-neck1dm = rospy.Publisher(dynamixel_namespace + 'neck1/command', Float64)
-neck2dm = rospy.Publisher(dynamixel_namespace + 'neck2/command', Float64)
-neck3dm = rospy.Publisher(dynamixel_namespace + 'neck3/command', Float64)
 
-openni = []
-opennilock = threading.Lock()
+if domotors: 
+    jawdm = rospy.Publisher(dynamixel_namespace + 'jaw/command', Float64)
+    neck0dm = rospy.Publisher(dynamixel_namespace + 'neck0/command', Float64)
+    neck1dm = rospy.Publisher(dynamixel_namespace + 'neck1/command', Float64)
+    neck2dm = rospy.Publisher(dynamixel_namespace + 'neck2/command', Float64)
+    neck3dm = rospy.Publisher(dynamixel_namespace + 'neck3/command', Float64)
 
-def openniCallback(thearray):
-    global openni, opennilock
-    opennilock.acquire()
-    openni = thearray.data
-    opennilock.release()
+def faceCallback(thearray):
+    facemarker = bpy.data.objects['facedetect']
+    facemarker.location.x = 1.5 - (thearray.data[0] / 100) 
+    facemarker.location.z = 1.5 - (thearray.data[1] / 100)
+    print("CALLBACK %s" % thearray)
 
-openni = rospy.Subscriber('openni_tracker/users', UInt16MultiArray, openniCallback)
+facedetect = rospy.Subscriber('/facedetect', UInt16MultiArray, faceCallback)
 
 def get_pose_matrix_in_other_space(mat, pose_bone):
     """ Returns the transform matrix relative to pose_bone's current
@@ -88,40 +90,41 @@ def get_bones_rotation_rad(armature,bone,axis):
 
 @persistent
 def load_handler(dummy):
-    global openni, opennilock, neck0, neck1, neck2, neck3, neck0dm, neck1dm, neck2dm, neck3dm
+    global domotors, jaw, neck0, neck1, neck2, neck3, jawdm, neck0dm, neck1dm, neck2dm, neck3dm
 
     newstuff = False
 
-    newneck0 = (get_bones_rotation_rad('Armature','base','y') * -2) 
+    newjaw = get_bones_rotation_rad('jawarm','jawbone','x')
+    if jaw != newjaw:
+        jaw = newjaw
+        jawdeg = get_bones_rotation('jawarm','jawbone','x')
+        if domotors: jawdm.publish(float(jaw))
+        print("JAW: %s (%s)" % (jaw, jawdeg))
+
+    newneck0 = get_bones_rotation_rad('Armature','base','y') + 2.2
     if neck0 != newneck0:
         neck0 = newneck0
-        neck0dm.publish(float(newneck0))
-        print("BASE: %s" % neck0)
+        neck0deg = get_bones_rotation('Armature','base','y')
+        if domotors: neck0dm.publish(float(newneck0))
+        print("BASE: %s (%s)" % (neck0, neck0deg))
 
     newneck1 = (get_bones_rotation_rad('Armature','bracket1','x') * -2) + 2.5
     if neck1 != newneck1:
         neck1 = newneck1
-        neck1dm.publish(float(newneck1))
+        if domotors: neck1dm.publish(float(newneck1))
         print("NECK1: %s" % neck1)
 
     newneck2 = (get_bones_rotation_rad('Armature','bracket2','z') * 2) + 2
     if neck2 != newneck2:
         neck2 = newneck2
-        neck2dm.publish(float(newneck2))
+        if domotors: neck2dm.publish(float(newneck2))
         print("NECK2: %s" % neck2)
 
     newneck3 = (get_bones_rotation_rad('Armature','bracket3','x') * 2) + 3
     if neck3 != newneck3:
         neck3 = newneck3
-        neck3dm.publish(float(newneck3))
+        if domotors: neck3dm.publish(float(newneck3))
         print("NECK3: %s" % neck3)
-
-#    opennilock.acquire()
-#    print("OPENNI: %s" % openni)
-#    opennilock.release()
-
-#    for user in openni:
-#        print("USER %s" % user)
 
 bpy.app.handlers.scene_update_post.append(load_handler)
 
