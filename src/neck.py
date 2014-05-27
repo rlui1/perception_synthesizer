@@ -12,22 +12,30 @@ from bpy.app.handlers import persistent
 from std_msgs.msg import Float64
 from std_msgs.msg import UInt16MultiArray
 
+from ros_pololu_servo.msg import servo_pololu
+
+doeyes = True
 domotors = False
+leye = 0
+reye = 0
 jaw = 0
 neck0 = 0
 neck1 = 0
 neck2 = 0
 neck3 = 0
 
-dynamixel_namespace = rospy.get_namespace()
+namespace = rospy.get_namespace()
 rospy.init_node('blender_arm', anonymous=True)
 
+if doeyes:
+    pololu = rospy.Publisher(namespace + 'cmd_pololu', servo_pololu)
+
 if domotors: 
-    jawdm = rospy.Publisher(dynamixel_namespace + 'jaw/command', Float64)
-    neck0dm = rospy.Publisher(dynamixel_namespace + 'neck0/command', Float64)
-    neck1dm = rospy.Publisher(dynamixel_namespace + 'neck1/command', Float64)
-    neck2dm = rospy.Publisher(dynamixel_namespace + 'neck2/command', Float64)
-    neck3dm = rospy.Publisher(dynamixel_namespace + 'neck3/command', Float64)
+    jawdm = rospy.Publisher(namespace + 'jaw/command', Float64)
+    neck0dm = rospy.Publisher(namespace + 'neck0/command', Float64)
+    neck1dm = rospy.Publisher(namespace + 'neck1/command', Float64)
+    neck2dm = rospy.Publisher(namespace + 'neck2/command', Float64)
+    neck3dm = rospy.Publisher(namespace + 'neck3/command', Float64)
 
 def faceCallback(thearray):
     facemarker = bpy.data.objects['facedetect']
@@ -90,9 +98,35 @@ def get_bones_rotation_rad(armature,bone,axis):
 
 @persistent
 def load_handler(dummy):
-    global domotors, jaw, neck0, neck1, neck2, neck3, jawdm, neck0dm, neck1dm, neck2dm, neck3dm
+    global leye, reye, pololu, doeyes, domotors, jaw, neck0, neck1, neck2, neck3, jawdm, neck0dm, neck1dm, neck2dm, neck3dm
 
     newstuff = False
+
+    newleye = get_bones_rotation_rad('leye','leyebone','z')
+    if leye != newleye:
+        leye = newleye
+        eyedeg = get_bones_rotation('leye','leyebone','z')
+        if doeyes: 
+            msg = servo_pololu()
+            msg.id = 0
+            msg.angle = newleye
+            msg.speed = 0
+            msg.acceleration = 0
+            pololu.publish(msg)
+            print("LEYE: %s" % msg)
+
+    newreye = get_bones_rotation_rad('reye','reyebone','z')
+    if reye != newreye:
+        reye = newreye
+        eyedeg = get_bones_rotation('reye','reyebone','z')
+        if doeyes: 
+            msg = servo_pololu()
+            msg.id = 1
+            msg.angle = newreye
+            msg.speed = 0
+            msg.acceleration = 0
+            pololu.publish(msg)
+            print("REYE: %s" % msg)
 
     newjaw = get_bones_rotation_rad('jawarm','jawbone','x')
     if jaw != newjaw:
