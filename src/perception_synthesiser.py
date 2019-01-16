@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Copyright (c) 2014 Hanson Robotics, Ltd. 
 import roslib; roslib.load_manifest('dmitry_tracker')
 import rospy
 import math
